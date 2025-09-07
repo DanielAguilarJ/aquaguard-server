@@ -1,0 +1,50 @@
+name: aquaguard-backend
+services:
+- name: api
+  source_dir: /
+  github:
+    repo: DanielAguilarJ/aquaguard-server
+    branch: main
+  run_command: npm start
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  envs:
+  - key: NODE_ENV
+    value: production
+  - key: LOG_LEVEL
+    value: info
+  - key: JWT_SECRET
+    value: ${JWT_SECRET}
+    type: SECRET
+  - key: DEVICE_SECRET_PREFIX
+    value: ${DEVICE_SECRET_PREFIX}
+    type: SECRET
+  - key: JWT_EXPIRES_IN
+    value: 15m
+  - key: APPWRITE_ENDPOINT
+    value: ${APPWRITE_ENDPOINT}
+  - key: APPWRITE_PROJECT_ID
+    value: ${APPWRITE_PROJECT_ID}
+  - key: APPWRITE_API_KEY
+    value: ${APPWRITE_API_KEY}
+    type: SECRET
+  - key: APPWRITE_DATABASE_ID
+    value: ${APPWRITE_DATABASE_ID}
+  - key: APPWRITE_SENSOR_READINGS_COLLECTION_ID
+    value: ${APPWRITE_SENSOR_READINGS_COLLECTION_ID}
+  - key: RATE_LIMIT_WINDOW_MS
+    value: "900000"
+  - key: RATE_LIMIT_MAX_REQUESTS
+    value: "1000"
+  - key: INGEST_RATE_LIMIT_WINDOW_MS
+    value: "60000"
+  - key: INGEST_RATE_LIMIT_MAX_REQUESTS
+    value: "300"
+  - key: ALLOWED_ORIGINS
+    value: https://your-frontend-domain.com
+  health_check:
+    http_path: /health
+  http_port: 3000
+  routes:
+  - path: /
