@@ -1,54 +1,43 @@
-# AquaGuard Telemetry Gateway (Node.js)
+const winston = require('winston');
+const fs = require('fs');
+const path = require('path');
 
-Backend Express listo para DigitalOcean App Platform y Appwrite. Expone endpoints seguros para autenticación de dispositivos ESP8266 y la ingesta de telemetría (individual y en lote).
+// Asegurar carpeta de logs
+const logDir = path.join(process.cwd(), 'logs');
+try {
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+} catch (_) {
+  // Si no se puede crear, continuamos con consola
+}
 
-## Endpoints
-- POST /auth/token
-- GET  /health
-- POST /ingest
-- POST /ingest/bulk
+// Configure Winston logger
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'aquaguard-backend' },
+  transports: [
+    // Write all logs with importance level of `error` or less to `error.log`
+    new winston.transports.File({ filename: path.join(logDir, 'error.log'), level: 'error' }),
+    // Write all logs with importance level of `info` or less to `combined.log`
+    new winston.transports.File({ filename: path.join(logDir, 'combined.log') }),
+  ],
+});
 
-## Requisitos
-- Node.js 18+
-- Proyecto Appwrite con base de datos y colección configuradas
+// If we're not in production then log to the `console` with the format:
+// `${info.level}: ${info.message} JSON.stringify({ ...rest }) `
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.simple()
+    )
+  }));
+}
 
-## Instalación local
-```bash
-npm install
-cp .env.sample .env
-# edita .env con tus credenciales
-npm run dev
-```
-
-## Variables de entorno (clave)
-- PORT, NODE_ENV, LOG_LEVEL, ALLOWED_ORIGINS
-- DEVICE_SECRET_PREFIX, JWT_SECRET, JWT_EXPIRES_IN
-- APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, APPWRITE_API_KEY, APPWRITE_DATABASE_ID, APPWRITE_SENSOR_READINGS_COLLECTION_ID
-- RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_REQUESTS, INGEST_RATE_LIMIT_WINDOW_MS, INGEST_RATE_LIMIT_MAX_REQUESTS
-
-## Esquema de documentos en Appwrite (colección de lecturas)
-- deviceId: string
-- sensorType: string (flow, pressure, temperature, humidity, ph, turbidity, dissolvedOxygen, conductivity)
-- value: number
-- unit: string (p. ej. °C, L/min)
-- timestamp: ISO8601
-- location: string
-- isAnomalous: boolean
-- ingestedAt: ISO8601
-- metadata: object
-
-## Docker (opcional)
-```bash
-# build
-docker build -t aquaguard-gateway .
-# run
-docker run --env-file .env -p 3000:3000 aquaguard-gateway
-```
-
-## DigitalOcean App Platform
-- No requiere Docker. App Platform detecta Node y ejecuta `npm start`.
-- Usa el spec `.do/app.yaml` (actualiza el nombre del repo si es necesario) o configura variables en el panel.
-
-## Notas
-- El gateway valida que `deviceId` en el payload coincida con el del token JWT.
-- Para dispositivos: deviceSecret = DEVICE_SECRET_PREFIX + deviceId.
+module.exports = logger;
